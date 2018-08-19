@@ -1,19 +1,22 @@
-#include "gqf.h"
 #include "gqf_wrapper_2.h"
+#include "gqf.h"
+
+
+#include <stdlib.h>
 
 
 void* qf_wrapper_new() {
-  void* qf = malloc(sizeof(QF));
+  void* qf = (void*)malloc(sizeof(QF));
   return qf;
 }
 
 void *qf_wrapper_destroy(void* qf) {
   qf_destroy((QF*) qf);
-  free qf;
+  free(qf);
 }
 
 bool qf_wrapper_malloc(void* qf, uint64_t nslots, uint64_t key_bits) {
-  qf_malloc((QF*) qf, nslots, key_bits, 0, LOCKS_FORBIDDEN, DEFAULT, 0);
+  qf_malloc((QF*) qf, nslots, key_bits, 0, QF_HASH_DEFAULT, 0);
 
 }
 
