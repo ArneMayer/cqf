@@ -6,8 +6,8 @@
 
 
 void* qf_wrapper_new() {
-  void* qf = (void*)malloc(sizeof(QF));
-  return qf;
+  //void* qf = (void*)malloc(sizeof(QF));
+  return 0;
 }
 
 void *qf_wrapper_destroy(void* qf) {
