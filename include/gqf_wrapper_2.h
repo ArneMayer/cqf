@@ -19,16 +19,15 @@ extern "C" {
 
   int qf_wrapper_new();
 
-	void *qf_wrapper_destroy(int qf_id);
+	void *qf_wrapper_destroy(void* qf);
 
-	bool qf_wrapper_malloc(int qf_id, uint64_t nslots, uint64_t key_bits, uint64_t
+	bool qf_wrapper_malloc(void* qf, uint64_t nslots, uint64_t key_bits, uint64_t
 								 value_bits, enum qf_hashmode hash, uint32_t seed);
 
-	int qf_wrapper_insert(int qf_id, uint64_t key, uint64_t value, uint64_t count, uint8_t
+	int qf_wrapper_insert(void* qf, uint64_t key, uint64_t value, uint64_t count, uint8_t
 								flags);
 
-	uint64_t qf_wrapper_count_key_value(const int qf_id, uint64_t key, uint64_t value,
-															uint8_t flags);
+	uint64_t qf_wrapper_count_key_value(void* qf, uint64_t key, uint64_t value, uint8_t flags);
 
 
 #ifdef __cplusplus
