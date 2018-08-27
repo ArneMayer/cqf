@@ -32,9 +32,9 @@
 #include <vector>
 #include <iostream>
 
-#include "cqf16.hpp"
+#include "../include/cqf32.hpp"
 
-namespace gqf16 {
+namespace gqf32 {
 
 /* Can be
 	 0 (choose size at run-time),
@@ -48,30 +48,30 @@ namespace gqf16 {
  ******************************************************************/
 
 /* Must be >= 6.  6 seems fastest. */
-#define BLOCK_OFFSET_BITS16 (6)
+#define BLOCK_OFFSET_BITS32 (6)
 
-#define SLOTS_PER_BLOCK16 (1ULL << BLOCK_OFFSET_BITS16)
-#define METADATA_WORD16S_PER_BLOCK16 ((SLOTS_PER_BLOCK16 + 63) / 64)
+#define SLOTS_PER_BLOCK32 (1ULL << BLOCK_OFFSET_BITS32)
+#define METADATA_WORD32S_PER_BLOCK32 ((SLOTS_PER_BLOCK32 + 63) / 64)
 
-#define METADATA_WORD16(qf,field,slot_index) (get_block((qf), (slot_index) / SLOTS_PER_BLOCK16)->field[((slot_index) % SLOTS_PER_BLOCK16) / 64])
-#define BITMASK16(nbits) ((nbits) == 64 ? 0xffffffffffffffff : (1ULL << (nbits)) - 1ULL)
-#define MAX_VALUE16(nbits) ((1ULL << (nbits)) - 1)
+#define METADATA_WORD32(qf,field,slot_index) (get_block((qf), (slot_index) / SLOTS_PER_BLOCK32)->field[((slot_index) % SLOTS_PER_BLOCK32) / 64])
+#define BITMASK32(nbits) ((nbits) == 64 ? 0xffffffffffffffff : (1ULL << (nbits)) - 1ULL)
+#define MAX_VALUE32(nbits) ((1ULL << (nbits)) - 1)
 
 typedef struct __attribute__ ((__packed__)) qfblock {
 	uint8_t offset; /* Code works with uint16_t, uint32_t, etc, but uint8_t seems just as fast as anything else */
-	uint64_t occupieds[METADATA_WORD16S_PER_BLOCK16];
-	uint64_t runends[METADATA_WORD16S_PER_BLOCK16];
+	uint64_t occupieds[METADATA_WORD32S_PER_BLOCK32];
+	uint64_t runends[METADATA_WORD32S_PER_BLOCK32];
 
-#if BITS_PER_SLOT16 == 8
-	uint8_t  slots[SLOTS_PER_BLOCK16];
-#elif BITS_PER_SLOT16 == 16
-	uint16_t  slots[SLOTS_PER_BLOCK16];
-#elif BITS_PER_SLOT16 == 32
-	uint32_t  slots[SLOTS_PER_BLOCK16];
-#elif BITS_PER_SLOT16 == 64
-	uint64_t  slots[SLOTS_PER_BLOCK16];
-#elif BITS_PER_SLOT16 != 0
-	uint8_t   slots[SLOTS_PER_BLOCK16 * BITS_PER_SLOT16 / 8];
+#if BITS_PER_SLOT32 == 8
+	uint8_t  slots[SLOTS_PER_BLOCK32];
+#elif BITS_PER_SLOT32 == 16
+	uint16_t  slots[SLOTS_PER_BLOCK32];
+#elif BITS_PER_SLOT32 == 32
+	uint32_t  slots[SLOTS_PER_BLOCK32];
+#elif BITS_PER_SLOT32 == 64
+	uint64_t  slots[SLOTS_PER_BLOCK32];
+#elif BITS_PER_SLOT32 != 0
+	uint8_t   slots[SLOTS_PER_BLOCK32 * BITS_PER_SLOT32 / 8];
 #else
 	uint8_t   slots[];
 #endif
@@ -80,11 +80,11 @@ typedef struct __attribute__ ((__packed__)) qfblock {
 uint64_t memory_consumption(const quotient_filter& filter) {
   uint64_t memory = 0;
   //std::cout << "nblocks: " << filter.nblocks << std::endl;
-  //std::cout << "METADATA_WORDS_PER_BLOCK: " << METADATA_WORD16S_PER_BLOCK16 << std::endl;
-  //std::cout << "SLOTS_PER_BLOCK16: " << SLOTS_PER_BLOCK16 << std::endl;
+  //std::cout << "METADATA_WORDS_PER_BLOCK: " << METADATA_WORD32S_PER_BLOCK32 << std::endl;
+  //std::cout << "SLOTS_PER_BLOCK32: " << SLOTS_PER_BLOCK32 << std::endl;
   memory += filter.nblocks * sizeof(uint8_t);
-  memory += filter.nblocks * sizeof(uint64_t) * 2 * METADATA_WORD16S_PER_BLOCK16;
-  memory += filter.nblocks * sizeof(uint16_t) * (SLOTS_PER_BLOCK16);
+  memory += filter.nblocks * sizeof(uint64_t) * 2 * METADATA_WORD32S_PER_BLOCK32;
+  memory += filter.nblocks * sizeof(uint32_t) * (SLOTS_PER_BLOCK32);
 
   return memory;
 }
@@ -114,7 +114,7 @@ static inline int64_t bitscanreverse(uint64_t val)
 static inline int popcntv(const uint64_t val, int ignore)
 {
 	if (ignore % 64)
-		return popcnt (val & ~BITMASK16(ignore % 64));
+		return popcnt (val & ~BITMASK32(ignore % 64));
 	else
 		return popcnt(val);
 }
@@ -269,10 +269,10 @@ static inline uint64_t bitselect(uint64_t val, int rank) {
 
 static inline uint64_t bitselectv(const uint64_t val, int ignore, int rank)
 {
-	return bitselect(val & ~BITMASK16(ignore % 64), rank);
+	return bitselect(val & ~BITMASK32(ignore % 64), rank);
 }
 
-#if BITS_PER_SLOT16 > 0
+#if BITS_PER_SLOT32 > 0
 static inline qfblock * get_block(const QF *qf, uint64_t block_index)
 {
 	return &qf->blocks[block_index];
@@ -280,35 +280,35 @@ static inline qfblock * get_block(const QF *qf, uint64_t block_index)
 #else
 static inline qfblock * get_block(const QF *qf, uint64_t block_index)
 {
-	return (qfblock *)(((char *)qf->blocks) + block_index * (sizeof(qfblock) + SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8));
+	return (qfblock *)(((char *)qf->blocks) + block_index * (sizeof(qfblock) + SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8));
 }
 #endif
 
 static inline int is_runend(const QF *qf, uint64_t index)
 {
-	return (METADATA_WORD16(qf, runends, index) >> ((index % SLOTS_PER_BLOCK16) % 64)) & 1ULL;
+	return (METADATA_WORD32(qf, runends, index) >> ((index % SLOTS_PER_BLOCK32) % 64)) & 1ULL;
 }
 
 static inline int is_occupied(const QF *qf, uint64_t index)
 {
-	return (METADATA_WORD16(qf, occupieds, index) >> ((index % SLOTS_PER_BLOCK16) % 64)) & 1ULL;
+	return (METADATA_WORD32(qf, occupieds, index) >> ((index % SLOTS_PER_BLOCK32) % 64)) & 1ULL;
 }
 
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 
 static inline uint64_t get_slot(const QF *qf, uint64_t index)
 {
 	assert(index < qf->xnslots);
-	return get_block(qf, index / SLOTS_PER_BLOCK16)->slots[index % SLOTS_PER_BLOCK16];
+	return get_block(qf, index / SLOTS_PER_BLOCK32)->slots[index % SLOTS_PER_BLOCK32];
 }
 
 static inline void set_slot(const QF *qf, uint64_t index, uint64_t value)
 {
 	assert(index < qf->xnslots);
-	get_block(qf, index / SLOTS_PER_BLOCK16)->slots[index % SLOTS_PER_BLOCK16] = value & BITMASK16(qf->bits_per_slot);
+	get_block(qf, index / SLOTS_PER_BLOCK32)->slots[index % SLOTS_PER_BLOCK32] = value & BITMASK32(qf->bits_per_slot);
 }
 
-#elif BITS_PER_SLOT16 > 0
+#elif BITS_PER_SLOT32 > 0
 
 /* Little-endian code ....  Big-endian is TODO */
 
@@ -316,19 +316,19 @@ static inline uint64_t get_slot(const QF *qf, uint64_t index)
 {
 	/* Should use __uint128_t to support up to 64-bit remainders, but gcc seems to generate buggy code.  :/  */
 	assert(index < qf->xnslots);
-	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK16)->slots[(index % SLOTS_PER_BLOCK16) * BITS_PER_SLOT16 / 8];
-	return (uint64_t)(((*p) >> (((index % SLOTS_PER_BLOCK16) * BITS_PER_SLOT16) % 8)) & BITMASK16(BITS_PER_SLOT16));
+	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK32)->slots[(index % SLOTS_PER_BLOCK32) * BITS_PER_SLOT32 / 8];
+	return (uint64_t)(((*p) >> (((index % SLOTS_PER_BLOCK32) * BITS_PER_SLOT32) % 8)) & BITMASK32(BITS_PER_SLOT32));
 }
 
 static inline void set_slot(const QF *qf, uint64_t index, uint64_t value)
 {
 	/* Should use __uint128_t to support up to 64-bit remainders, but gcc seems to generate buggy code.  :/  */
 	assert(index < qf->xnslots);
-	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK16)->slots[(index % SLOTS_PER_BLOCK16) * BITS_PER_SLOT16 / 8];
+	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK32)->slots[(index % SLOTS_PER_BLOCK32) * BITS_PER_SLOT32 / 8];
 	uint64_t t = *p;
-	uint64_t mask = BITMASK16(BITS_PER_SLOT16);
+	uint64_t mask = BITMASK32(BITS_PER_SLOT32);
 	uint64_t v = value;
-	int shift = ((index % SLOTS_PER_BLOCK16) * BITS_PER_SLOT16) % 8;
+	int shift = ((index % SLOTS_PER_BLOCK32) * BITS_PER_SLOT32) % 8;
 	mask <<= shift;
 	v <<= shift;
 	t &= ~mask;
@@ -344,19 +344,19 @@ static inline uint64_t get_slot(const QF *qf, uint64_t index)
 {
 	assert(index < qf->xnslots);
 	/* Should use __uint128_t to support up to 64-bit remainders, but gcc seems to generate buggy code.  :/  */
-	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK16)->slots[(index % SLOTS_PER_BLOCK16) * qf->bits_per_slot / 8];
-	return (uint64_t)(((*p) >> (((index % SLOTS_PER_BLOCK16) * qf->bits_per_slot) % 8)) & BITMASK16(qf->bits_per_slot));
+	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK32)->slots[(index % SLOTS_PER_BLOCK32) * qf->bits_per_slot / 8];
+	return (uint64_t)(((*p) >> (((index % SLOTS_PER_BLOCK32) * qf->bits_per_slot) % 8)) & BITMASK32(qf->bits_per_slot));
 }
 
 static inline void set_slot(const QF *qf, uint64_t index, uint64_t value)
 {
 	assert(index < qf->xnslots);
 	/* Should use __uint128_t to support up to 64-bit remainders, but gcc seems to generate buggy code.  :/  */
-	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK16)->slots[(index % SLOTS_PER_BLOCK16) * qf->bits_per_slot / 8];
+	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK32)->slots[(index % SLOTS_PER_BLOCK32) * qf->bits_per_slot / 8];
 	uint64_t t = *p;
-	uint64_t mask = BITMASK16(qf->bits_per_slot);
+	uint64_t mask = BITMASK32(qf->bits_per_slot);
 	uint64_t v = value;
-	int shift = ((index % SLOTS_PER_BLOCK16) * qf->bits_per_slot) % 8;
+	int shift = ((index % SLOTS_PER_BLOCK32) * qf->bits_per_slot) % 8;
 	mask <<= shift;
 	v <<= shift;
 	t &= ~mask;
@@ -374,51 +374,51 @@ static inline uint64_t block_offset(const QF *qf, uint64_t blockidx)
 		 field, then we can safely ignore the possibility of overflowing
 		 that field. */
 	if (sizeof(qf->blocks[0].offset > 1) ||
-			get_block(qf, blockidx)->offset < BITMASK16(8*sizeof(qf->blocks[0].offset)))
+			get_block(qf, blockidx)->offset < BITMASK32(8*sizeof(qf->blocks[0].offset)))
 		return get_block(qf, blockidx)->offset;
 
-	return run_end(qf, SLOTS_PER_BLOCK16 * blockidx - 1) - SLOTS_PER_BLOCK16 * blockidx + 1;
+	return run_end(qf, SLOTS_PER_BLOCK32 * blockidx - 1) - SLOTS_PER_BLOCK32 * blockidx + 1;
 }
 
 static inline uint64_t run_end(const QF *qf, uint64_t hash_bucket_index)
 {
-	uint64_t bucket_block_index       = hash_bucket_index / SLOTS_PER_BLOCK16;
-	uint64_t bucket_intrablock_offset = hash_bucket_index % SLOTS_PER_BLOCK16;
+	uint64_t bucket_block_index       = hash_bucket_index / SLOTS_PER_BLOCK32;
+	uint64_t bucket_intrablock_offset = hash_bucket_index % SLOTS_PER_BLOCK32;
 	uint64_t bucket_blocks_offset = block_offset(qf, bucket_block_index);
 
-	// uint64_t bucket_intrablock_rank   = bitrankv(get_block(qf, bucket_block_index)->occupieds, METADATA_WORD16S_PER_BLOCK16, bucket_intrablock_offset);
+	// uint64_t bucket_intrablock_rank   = bitrankv(get_block(qf, bucket_block_index)->occupieds, METADATA_WORD32S_PER_BLOCK32, bucket_intrablock_offset);
 	uint64_t bucket_intrablock_rank   = bitrank(get_block(qf, bucket_block_index)->occupieds[0], bucket_intrablock_offset);
 
 	if (bucket_intrablock_rank == 0) {
 		if (bucket_blocks_offset <= bucket_intrablock_offset)
 			return hash_bucket_index;
 		else
-			return SLOTS_PER_BLOCK16 * bucket_block_index + bucket_blocks_offset - 1;
+			return SLOTS_PER_BLOCK32 * bucket_block_index + bucket_blocks_offset - 1;
 	}
 
 	/* FIXME: Should handle offset overflow  --- Ah screw it, just use 16-bit offset.  That'll never overflow.  */
-	uint64_t runend_block_index  = bucket_block_index + bucket_blocks_offset / SLOTS_PER_BLOCK16;
-	uint64_t runend_ignore_bits  = bucket_blocks_offset % SLOTS_PER_BLOCK16;
+	uint64_t runend_block_index  = bucket_block_index + bucket_blocks_offset / SLOTS_PER_BLOCK32;
+	uint64_t runend_ignore_bits  = bucket_blocks_offset % SLOTS_PER_BLOCK32;
 	uint64_t runend_rank         = bucket_intrablock_rank - 1;
-	// uint64_t runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends, METADATA_WORD16S_PER_BLOCK16, runend_ignore_bits, runend_rank);
+	// uint64_t runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends, METADATA_WORD32S_PER_BLOCK32, runend_ignore_bits, runend_rank);
 	uint64_t runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends[0], runend_ignore_bits, runend_rank);
-	if (runend_block_offset == SLOTS_PER_BLOCK16) {
+	if (runend_block_offset == SLOTS_PER_BLOCK32) {
 		if (bucket_blocks_offset == 0 && bucket_intrablock_rank == 0) {
 			/* The block begins in empty space, and this bucket is in that region of empty space */
 			return hash_bucket_index;
 		} else {
 			do {
-				// runend_rank        -= popcntv(get_block(qf, runend_block_index)->runends, METADATA_WORD16S_PER_BLOCK16, runend_ignore_bits);
+				// runend_rank        -= popcntv(get_block(qf, runend_block_index)->runends, METADATA_WORD32S_PER_BLOCK32, runend_ignore_bits);
 				runend_rank        -= popcntv(get_block(qf, runend_block_index)->runends[0], runend_ignore_bits);
 				runend_block_index++;
 				runend_ignore_bits  = 0;
-				// runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends, METADATA_WORD16S_PER_BLOCK16, runend_ignore_bits, runend_rank);
+				// runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends, METADATA_WORD32S_PER_BLOCK32, runend_ignore_bits, runend_rank);
 				runend_block_offset = bitselectv(get_block(qf, runend_block_index)->runends[0], runend_ignore_bits, runend_rank);
-			} while (runend_block_offset == SLOTS_PER_BLOCK16);
+			} while (runend_block_offset == SLOTS_PER_BLOCK32);
 		}
 	}
 
-	uint64_t runend_index = SLOTS_PER_BLOCK16 * runend_block_index + runend_block_offset;
+	uint64_t runend_index = SLOTS_PER_BLOCK32 * runend_block_index + runend_block_offset;
 	if (runend_index < hash_bucket_index)
 		return hash_bucket_index;
 	else
@@ -429,13 +429,13 @@ static inline uint64_t run_end(const QF *qf, uint64_t hash_bucket_index)
  * If the slot_offset is smaller than the boffset then it's never empty. */
 static inline int offset_lower_bound(const QF *qf, uint64_t slot_index)
 {
-	const qfblock * b = get_block(qf, slot_index / SLOTS_PER_BLOCK16);
-	const uint64_t slot_offset = slot_index % SLOTS_PER_BLOCK16;
+	const qfblock * b = get_block(qf, slot_index / SLOTS_PER_BLOCK32);
+	const uint64_t slot_offset = slot_index % SLOTS_PER_BLOCK32;
 	const uint64_t boffset = b->offset;
-	const uint64_t occupieds = b->occupieds[0] & BITMASK16(slot_offset+1);
-	assert(SLOTS_PER_BLOCK16 == 64);
+	const uint64_t occupieds = b->occupieds[0] & BITMASK32(slot_offset+1);
+	assert(SLOTS_PER_BLOCK32 == 64);
 	if (boffset <= slot_offset) {
-		const uint64_t runends = (b->runends[0] & BITMASK16(slot_offset)) >> boffset;
+		const uint64_t runends = (b->runends[0] & BITMASK32(slot_offset)) >> boffset;
 		return popcnt(occupieds) - popcnt(runends);
 	}
 	return boffset - slot_offset + popcnt(occupieds);
@@ -486,20 +486,20 @@ static inline uint64_t shift_into_b(const uint64_t a, const uint64_t b,
 																		const int amount)
 {
 	const uint64_t a_component = bstart == 0 ? (a >> (64 - amount)) : 0;
-	const uint64_t b_shifted_mask = BITMASK16(bend - bstart) << bstart;
+	const uint64_t b_shifted_mask = BITMASK32(bend - bstart) << bstart;
 	const uint64_t b_shifted = ((b_shifted_mask & b) << amount) & b_shifted_mask;
 	const uint64_t b_mask = ~b_shifted_mask;
 	return a_component | b_shifted | (b & b_mask);
 }
 
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 
 static inline void shift_remainders(QF *qf, uint64_t start_index, uint64_t empty_index)
 {
-	uint64_t start_block  = start_index / SLOTS_PER_BLOCK16;
-	uint64_t start_offset = start_index % SLOTS_PER_BLOCK16;
-	uint64_t empty_block  = empty_index / SLOTS_PER_BLOCK16;
-	uint64_t empty_offset = empty_index % SLOTS_PER_BLOCK16;
+	uint64_t start_block  = start_index / SLOTS_PER_BLOCK32;
+	uint64_t start_offset = start_index % SLOTS_PER_BLOCK32;
+	uint64_t empty_block  = empty_index / SLOTS_PER_BLOCK32;
+	uint64_t empty_offset = empty_index % SLOTS_PER_BLOCK32;
 
 	assert (start_index <= empty_index && empty_index < qf->xnslots);
 
@@ -507,9 +507,9 @@ static inline void shift_remainders(QF *qf, uint64_t start_index, uint64_t empty
 		memmove(&get_block(qf, empty_block)->slots[1],
 						&get_block(qf, empty_block)->slots[0],
 						empty_offset * sizeof(qf->blocks[0].slots[0]));
-		get_block(qf, empty_block)->slots[0] = get_block(qf, empty_block-1)->slots[SLOTS_PER_BLOCK16-1];
+		get_block(qf, empty_block)->slots[0] = get_block(qf, empty_block-1)->slots[SLOTS_PER_BLOCK32-1];
 		empty_block--;
-		empty_offset = SLOTS_PER_BLOCK16-1;
+		empty_offset = SLOTS_PER_BLOCK32-1;
 	}
 
 	memmove(&get_block(qf, empty_block)->slots[start_offset+1],
@@ -548,26 +548,26 @@ static inline void qf_dump_block(const QF *qf, uint64_t i)
 	printf("%-192d", get_block(qf, i)->offset);
 	printf("\n");
 
-	for (j = 0; j < SLOTS_PER_BLOCK16; j++)
+	for (j = 0; j < SLOTS_PER_BLOCK32; j++)
 		printf("%02lx ", j);
 	printf("\n");
 
-	for (j = 0; j < SLOTS_PER_BLOCK16; j++)
+	for (j = 0; j < SLOTS_PER_BLOCK32; j++)
 		printf(" %d ", (get_block(qf, i)->occupieds[j/64] & (1ULL << (j%64))) ? 1 : 0);
 	printf("\n");
 
-	for (j = 0; j < SLOTS_PER_BLOCK16; j++)
+	for (j = 0; j < SLOTS_PER_BLOCK32; j++)
 		printf(" %d ", (get_block(qf, i)->runends[j/64] & (1ULL << (j%64))) ? 1 : 0);
 	printf("\n");
 
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32
-	for (j = 0; j < SLOTS_PER_BLOCK16; j++)
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32
+	for (j = 0; j < SLOTS_PER_BLOCK32; j++)
 		printf("%02x ", get_block(qf, i)->slots[j]);
-#elif BITS_PER_SLOT16 == 64
-	for (j = 0; j < SLOTS_PER_BLOCK16; j++)
+#elif BITS_PER_SLOT32 == 64
+	for (j = 0; j < SLOTS_PER_BLOCK32; j++)
 		printf("%02lx ", get_block(qf, i)->slots[j]);
 #else
-	for (j = 0; j < SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8; j++)
+	for (j = 0; j < SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8; j++)
 		printf("%02x ", get_block(qf, i)->slots[j]);
 #endif
 
@@ -617,10 +617,10 @@ void qf_serialize(const QF *qf, const char *filename)
 	fprintf(fout, "%lu ", qf->ndistinct_elts);
 	fprintf(fout, "%lu ", qf->noccupied_slots);
 
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 	assert(qf->nblocks == fwrite(qf->blocks, sizeof(qfblock), qf->nblocks, fout));
 #else
-	assert(qf->nblocks == fwrite(qf->blocks, sizeof(qfblock) + SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8, qf->nblocks, fout));
+	assert(qf->nblocks == fwrite(qf->blocks, sizeof(qfblock) + SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8, qf->nblocks, fout));
 #endif
 
 	fclose(fout);
@@ -657,16 +657,16 @@ void qf_deserialize(QF *qf, const char *filename)
 	qf->range = tmp_range;
 
 	/* allocate the space for the actual qf blocks */
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock));
 #else
-	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock) + SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8);
+	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock) + SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8);
 #endif
 
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 	assert(qf->nblocks == fread(qf->blocks, sizeof(qfblock), qf->nblocks, fin));
 #else
-	assert(qf->nblocks == fread(qf->blocks, sizeof(qfblock) + SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8, qf->nblocks, fin));
+	assert(qf->nblocks == fread(qf->blocks, sizeof(qfblock) + SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8, qf->nblocks, fin));
 #endif
 
 	fclose(fin);
@@ -699,19 +699,19 @@ static inline void shift_runends(QF *qf, int64_t first, uint64_t last, uint64_t 
 	uint64_t bend = (last + distance + 1) % 64;
 
 	if (last_word != first_word) {
-		METADATA_WORD16(qf, runends, 64*last_word) = shift_into_b(METADATA_WORD16(qf, runends, 64*(last_word-1)),
-																														METADATA_WORD16(qf, runends, 64*last_word),
+		METADATA_WORD32(qf, runends, 64*last_word) = shift_into_b(METADATA_WORD32(qf, runends, 64*(last_word-1)),
+																														METADATA_WORD32(qf, runends, 64*last_word),
 																														0, bend, distance);
 		bend = 64;
 		last_word--;
 		while (last_word != first_word) {
-			METADATA_WORD16(qf, runends, 64*last_word) = shift_into_b(METADATA_WORD16(qf, runends, 64*(last_word-1)),
-																															METADATA_WORD16(qf, runends, 64*last_word),
+			METADATA_WORD32(qf, runends, 64*last_word) = shift_into_b(METADATA_WORD32(qf, runends, 64*(last_word-1)),
+																															METADATA_WORD32(qf, runends, 64*last_word),
 																															0, bend, distance);
 			last_word--;
 		}
 	}
-	METADATA_WORD16(qf, runends, 64*last_word) = shift_into_b(0, METADATA_WORD16(qf, runends, 64*last_word),
+	METADATA_WORD32(qf, runends, 64*last_word) = shift_into_b(0, METADATA_WORD32(qf, runends, 64*last_word),
 																													bstart, bend, distance);
 
 }
@@ -745,19 +745,19 @@ static inline void insert_replace_slots_and_shift_remainders_and_runends_and_off
 
 
 		for (i = noverwrites; i < total_remainders - 1; i++)
-			METADATA_WORD16(qf, runends, overwrite_index + i) &= ~(1ULL << (((overwrite_index + i) % SLOTS_PER_BLOCK16) % 64));
+			METADATA_WORD32(qf, runends, overwrite_index + i) &= ~(1ULL << (((overwrite_index + i) % SLOTS_PER_BLOCK32) % 64));
 
 		switch (operation) {
 			case 0: /* insert into empty bucket */
 				assert (noverwrites == 0);
-				METADATA_WORD16(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK16) % 64);
+				METADATA_WORD32(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK32) % 64);
 				break;
 			case 1: /* append to bucket */
-				METADATA_WORD16(qf, runends, overwrite_index + noverwrites - 1)      &= ~(1ULL << (((overwrite_index + noverwrites - 1) % SLOTS_PER_BLOCK16) % 64));
-				METADATA_WORD16(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK16) % 64);
+				METADATA_WORD32(qf, runends, overwrite_index + noverwrites - 1)      &= ~(1ULL << (((overwrite_index + noverwrites - 1) % SLOTS_PER_BLOCK32) % 64));
+				METADATA_WORD32(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK32) % 64);
 				break;
 			case 2: /* insert into bucket */
-				METADATA_WORD16(qf, runends, overwrite_index + total_remainders - 1) &= ~(1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK16) % 64));
+				METADATA_WORD32(qf, runends, overwrite_index + total_remainders - 1) &= ~(1ULL << (((overwrite_index + total_remainders - 1) % SLOTS_PER_BLOCK32) % 64));
 				break;
 			default:
 				fprintf(stderr, "Invalid operation %d\n", operation);
@@ -765,13 +765,13 @@ static inline void insert_replace_slots_and_shift_remainders_and_runends_and_off
 		}
 
 		if (ninserts > 0) {
-			for (i = bucket_index / SLOTS_PER_BLOCK16 + 1; i <= empties[ninserts - 1]/SLOTS_PER_BLOCK16; i++) {
-				if (get_block(qf, i)->offset < BITMASK16(8*sizeof(qf->blocks[0].offset)))
+			for (i = bucket_index / SLOTS_PER_BLOCK32 + 1; i <= empties[ninserts - 1]/SLOTS_PER_BLOCK32; i++) {
+				if (get_block(qf, i)->offset < BITMASK32(8*sizeof(qf->blocks[0].offset)))
 					get_block(qf, i)->offset += ninserts;
 			}
 			for (j = 0; j < ninserts -1 ; j++)
-				for (i = empties[ninserts - j - 1] / SLOTS_PER_BLOCK16 + 1; i <= empties[ninserts - j - 2]/SLOTS_PER_BLOCK16; i++) {
-					if (get_block(qf, i)->offset < BITMASK16(8*sizeof(qf->blocks[0].offset)))
+				for (i = empties[ninserts - j - 1] / SLOTS_PER_BLOCK32 + 1; i <= empties[ninserts - j - 2]/SLOTS_PER_BLOCK32; i++) {
+					if (get_block(qf, i)->offset < BITMASK32(8*sizeof(qf->blocks[0].offset)))
 						get_block(qf, i)->offset += ninserts - j - 1;
 				}
 		}
@@ -800,12 +800,12 @@ static inline void remove_replace_slots_and_shift_remainders_and_runends_and_off
 	if (is_runend(qf, overwrite_index + old_length - 1)) {
 	  if (total_remainders > 0) {
 	    // If we're not deleting this entry entirely, then it will still the last entry in this run
-	    METADATA_WORD16(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << ((overwrite_index + total_remainders - 1) % 64);
+	    METADATA_WORD32(qf, runends, overwrite_index + total_remainders - 1) |= 1ULL << ((overwrite_index + total_remainders - 1) % 64);
 	  } else if (overwrite_index > bucket_index &&
 		     !is_runend(qf, overwrite_index - 1)) {
 	    // If we're deleting this entry entirely, but it is not the first entry in this run,
 	    // then set the preceding entry to be the runend
-	    METADATA_WORD16(qf, runends, overwrite_index - 1) |= 1ULL << ((overwrite_index - 1) % 64);
+	    METADATA_WORD32(qf, runends, overwrite_index - 1) |= 1ULL << ((overwrite_index - 1) % 64);
 	  }
 	}
 
@@ -827,14 +827,14 @@ static inline void remove_replace_slots_and_shift_remainders_and_runends_and_off
 			set_slot(qf, current_slot, get_slot(qf, current_slot + current_distance));
 			if (is_runend(qf, current_slot) !=
 					is_runend(qf, current_slot + current_distance))
-				METADATA_WORD16(qf, runends, current_slot) ^= 1ULL << (current_slot % 64);
+				METADATA_WORD32(qf, runends, current_slot) ^= 1ULL << (current_slot % 64);
 			current_slot++;
 
 		} else if (current_bucket <= current_slot + current_distance) {
 			uint64_t i;
 			for (i = current_slot; i < current_slot + current_distance; i++) {
 				set_slot(qf, i, 0);
-				METADATA_WORD16(qf, runends, i) &= ~(1ULL << (i % 64));
+				METADATA_WORD32(qf, runends, i) &= ~(1ULL << (i % 64));
 			}
 
 			current_distance = current_slot + current_distance - current_bucket;
@@ -847,14 +847,14 @@ static inline void remove_replace_slots_and_shift_remainders_and_runends_and_off
 	// reset the occupied bit of the hash bucket index if the hash is the
 	// only item in the run and is removed completely.
 	if (operation && !total_remainders)
-		METADATA_WORD16(qf, occupieds, bucket_index) &= ~(1ULL << (bucket_index % 64));
+		METADATA_WORD32(qf, occupieds, bucket_index) &= ~(1ULL << (bucket_index % 64));
 
 	// update the offset bits.
 	// find the number of occupied slots in the original_bucket block.
 	// Then find the runend slot corresponding to the last run in the
 	// original_bucket block.
 	// Update the offset of the block to which it belongs.
-	uint64_t original_block = original_bucket / SLOTS_PER_BLOCK16;
+	uint64_t original_block = original_bucket / SLOTS_PER_BLOCK32;
 	while (1 && old_length > total_remainders) {	// we only update offsets if we shift/delete anything
 		int32_t last_occupieds_bit = bitscanreverse(get_block(qf, original_block)->occupieds[0]);
 		// there is nothing in the block
@@ -863,25 +863,25 @@ static inline void remove_replace_slots_and_shift_remainders_and_runends_and_off
 				break;
 			get_block(qf, original_block + 1)->offset = 0;
 		} else {
-			uint64_t last_occupieds_hash_index = SLOTS_PER_BLOCK16 * original_block + last_occupieds_bit;
+			uint64_t last_occupieds_hash_index = SLOTS_PER_BLOCK32 * original_block + last_occupieds_bit;
 			uint64_t runend_index = run_end(qf, last_occupieds_hash_index);
 			// runend spans across the block
 			// update the offset of the next block
-			if (runend_index / SLOTS_PER_BLOCK16 == original_block) { // if the run ends in the same block
+			if (runend_index / SLOTS_PER_BLOCK32 == original_block) { // if the run ends in the same block
 				if (get_block(qf, original_block + 1)->offset == 0)
 					break;
 				get_block(qf, original_block + 1)->offset = 0;
-			} else if (runend_index / SLOTS_PER_BLOCK16 == original_block + 1) { // if the last run spans across one block
-				if (get_block(qf, original_block + 1)->offset == (runend_index % SLOTS_PER_BLOCK16) + 1)
+			} else if (runend_index / SLOTS_PER_BLOCK32 == original_block + 1) { // if the last run spans across one block
+				if (get_block(qf, original_block + 1)->offset == (runend_index % SLOTS_PER_BLOCK32) + 1)
 					break;
-				get_block(qf, original_block + 1)->offset = (runend_index % SLOTS_PER_BLOCK16) + 1;
+				get_block(qf, original_block + 1)->offset = (runend_index % SLOTS_PER_BLOCK32) + 1;
 			} else { // if the last run spans across multiple blocks
 				uint64_t i;
-				for (i = original_block + 1; i < runend_index / SLOTS_PER_BLOCK16 - 1; i++)
-					get_block(qf, i)->offset = SLOTS_PER_BLOCK16;
-				if (get_block(qf, runend_index / SLOTS_PER_BLOCK16)->offset == (runend_index % SLOTS_PER_BLOCK16) + 1)
+				for (i = original_block + 1; i < runend_index / SLOTS_PER_BLOCK32 - 1; i++)
+					get_block(qf, i)->offset = SLOTS_PER_BLOCK32;
+				if (get_block(qf, runend_index / SLOTS_PER_BLOCK32)->offset == (runend_index % SLOTS_PER_BLOCK32) + 1)
 					break;
-				get_block(qf, runend_index / SLOTS_PER_BLOCK16)->offset = (runend_index % SLOTS_PER_BLOCK16) + 1;
+				get_block(qf, runend_index / SLOTS_PER_BLOCK32)->offset = (runend_index % SLOTS_PER_BLOCK32) + 1;
 			}
 		}
 		original_block++;
@@ -1052,12 +1052,12 @@ static inline uint64_t next_slot(QF *qf, uint64_t current)
 
 static inline void insert1(QF *qf, __uint128_t hash)
 {
-	uint64_t hash_remainder           = hash & BITMASK16(qf->bits_per_slot);
+	uint64_t hash_remainder           = hash & BITMASK32(qf->bits_per_slot);
 	uint64_t hash_bucket_index        = hash >> qf->bits_per_slot;
-	uint64_t hash_bucket_block_offset = hash_bucket_index % SLOTS_PER_BLOCK16;
+	uint64_t hash_bucket_block_offset = hash_bucket_index % SLOTS_PER_BLOCK32;
 
 	if (is_empty(qf, hash_bucket_index)) {
-		METADATA_WORD16(qf, runends, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
+		METADATA_WORD32(qf, runends, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
 		set_slot(qf, hash_bucket_index, hash_remainder);
 		qf->noccupied_slots++;
 		qf->ndistinct_elts++;
@@ -1181,7 +1181,7 @@ static inline void insert1(QF *qf, __uint128_t hash)
 					}
 
 					// Increment the digit
-					digit = (digit + 1) & BITMASK16(qf->bits_per_slot);
+					digit = (digit + 1) & BITMASK32(qf->bits_per_slot);
 
 					// Ensure digit meets our encoding requirements
 					if (digit == 0) {
@@ -1189,7 +1189,7 @@ static inline void insert1(QF *qf, __uint128_t hash)
 						carry = 1;
 					}
 					if (digit == current_remainder)
-						digit = (digit + 1) & BITMASK16(qf->bits_per_slot);
+						digit = (digit + 1) & BITMASK32(qf->bits_per_slot);
 					if (digit == 0) {
 						digit++;
 						carry = 1;
@@ -1233,14 +1233,14 @@ static inline void insert1(QF *qf, __uint128_t hash)
 			shift_runends(qf, insert_index, empty_slot_index-1, 1);
 			switch (operation) {
 				case 0:
-					METADATA_WORD16(qf, runends, insert_index)   |= 1ULL << ((insert_index % SLOTS_PER_BLOCK16) % 64);
+					METADATA_WORD32(qf, runends, insert_index)   |= 1ULL << ((insert_index % SLOTS_PER_BLOCK32) % 64);
 					break;
 				case 1:
-					METADATA_WORD16(qf, runends, insert_index-1) &= ~(1ULL << (((insert_index-1) % SLOTS_PER_BLOCK16) % 64));
-					METADATA_WORD16(qf, runends, insert_index)   |= 1ULL << ((insert_index % SLOTS_PER_BLOCK16) % 64);
+					METADATA_WORD32(qf, runends, insert_index-1) &= ~(1ULL << (((insert_index-1) % SLOTS_PER_BLOCK32) % 64));
+					METADATA_WORD32(qf, runends, insert_index)   |= 1ULL << ((insert_index % SLOTS_PER_BLOCK32) % 64);
 					break;
 				case 2:
-					METADATA_WORD16(qf, runends, insert_index)   &= ~(1ULL << ((insert_index % SLOTS_PER_BLOCK16) % 64));
+					METADATA_WORD32(qf, runends, insert_index)   &= ~(1ULL << ((insert_index % SLOTS_PER_BLOCK32) % 64));
 					break;
 				default:
 					fprintf(stderr, "Invalid operation %d\n", operation);
@@ -1252,8 +1252,8 @@ static inline void insert1(QF *qf, __uint128_t hash)
 			 * and block of the empty slot
 			 * */
 			uint64_t i;
-			for (i = hash_bucket_index / SLOTS_PER_BLOCK16 + 1; i <= empty_slot_index/SLOTS_PER_BLOCK16; i++) {
-				if (get_block(qf, i)->offset < BITMASK16(8*sizeof(qf->blocks[0].offset)))
+			for (i = hash_bucket_index / SLOTS_PER_BLOCK32 + 1; i <= empty_slot_index/SLOTS_PER_BLOCK32; i++) {
+				if (get_block(qf, i)->offset < BITMASK32(8*sizeof(qf->blocks[0].offset)))
 					get_block(qf, i)->offset++;
 				//assert(get_block(qf, i)->offset != 0);
 			}
@@ -1262,23 +1262,23 @@ static inline void insert1(QF *qf, __uint128_t hash)
 		}
 	}
 
-	METADATA_WORD16(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
+	METADATA_WORD32(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
 	qf->nelts++;
 }
 
 static inline void insert(QF *qf, __uint128_t hash, uint64_t count)
 {
-	uint64_t hash_remainder           = hash & BITMASK16(qf->bits_per_slot);
+	uint64_t hash_remainder           = hash & BITMASK32(qf->bits_per_slot);
 	uint64_t hash_bucket_index        = hash >> qf->bits_per_slot;
-	uint64_t hash_bucket_block_offset = hash_bucket_index % SLOTS_PER_BLOCK16;
+	uint64_t hash_bucket_block_offset = hash_bucket_index % SLOTS_PER_BLOCK32;
 
 	/* Empty slot */
 	if (is_empty(qf, hash_bucket_index)) {
-		METADATA_WORD16(qf, runends, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
+		METADATA_WORD32(qf, runends, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
 		set_slot(qf, hash_bucket_index, hash_remainder);
 		qf->noccupied_slots++;
 
-		METADATA_WORD16(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
+		METADATA_WORD32(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
 		qf->nelts += 1;
 		qf->ndistinct_elts++;
 
@@ -1352,14 +1352,14 @@ static inline void insert(QF *qf, __uint128_t hash, uint64_t count)
 			}
 		}
 
-		METADATA_WORD16(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
+		METADATA_WORD32(qf, occupieds, hash_bucket_index) |= 1ULL << (hash_bucket_block_offset % 64);
 		qf->nelts += count;
 	}
 }
 
 inline static void _remove(QF *qf, __uint128_t hash, uint64_t count)
 {
-	uint64_t hash_remainder           = hash & BITMASK16(qf->bits_per_slot);
+	uint64_t hash_remainder           = hash & BITMASK32(qf->bits_per_slot);
 	uint64_t hash_bucket_index        = hash >> qf->bits_per_slot;
 	uint64_t current_remainder, current_count, current_end;
 	uint64_t new_values[67];
@@ -1428,26 +1428,26 @@ void qf_init(QF *qf, uint64_t nslots, uint64_t key_bits, uint64_t value_bits)
 	}
 
 	qf->bits_per_slot = qf->key_remainder_bits + qf->value_bits;
-	assert (BITS_PER_SLOT16 == 0 || BITS_PER_SLOT16 == qf->bits_per_slot);
+	assert (BITS_PER_SLOT32 == 0 || BITS_PER_SLOT32 == qf->bits_per_slot);
 	assert(qf->bits_per_slot > 1);
 
 	qf->range = qf->nslots;
 	qf->range <<= qf->bits_per_slot;
-	qf->nblocks = (qf->xnslots + SLOTS_PER_BLOCK16 - 1) / SLOTS_PER_BLOCK16;
+	qf->nblocks = (qf->xnslots + SLOTS_PER_BLOCK32 - 1) / SLOTS_PER_BLOCK32;
 	qf->nelts = 0;
 	qf->ndistinct_elts = 0;
 	qf->noccupied_slots = 0;
-#if BITS_PER_SLOT16 == 8 || BITS_PER_SLOT16 == 16 || BITS_PER_SLOT16 == 32 || BITS_PER_SLOT16 == 64
+#if BITS_PER_SLOT32 == 8 || BITS_PER_SLOT32 == 16 || BITS_PER_SLOT32 == 32 || BITS_PER_SLOT32 == 64
 	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock));
 #else
-	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock) + SLOTS_PER_BLOCK16 * qf->bits_per_slot / 8);
+	qf->blocks = (qfblock *)calloc(qf->nblocks, sizeof(qfblock) + SLOTS_PER_BLOCK32 * qf->bits_per_slot / 8);
 #endif
 }
 
 uint64_t qf_count_key_value(const QF *qf, uint64_t key, uint64_t value)
 {
 	__uint128_t hash = key;
-	uint64_t hash_remainder   = hash & BITMASK16(qf->bits_per_slot);
+	uint64_t hash_remainder   = hash & BITMASK32(qf->bits_per_slot);
 	int64_t hash_bucket_index = hash >> qf->bits_per_slot;
 
 	if (!is_occupied(qf, hash_bucket_index))
@@ -1472,7 +1472,7 @@ uint64_t qf_count_key_value(const QF *qf, uint64_t key, uint64_t value)
 
 void qf_insert(QF *qf, uint64_t key, uint64_t value, uint64_t count)
 {
-	/*uint64_t hash = (key << qf->value_bits) | (value & BITMASK16(qf->value_bits));*/
+	/*uint64_t hash = (key << qf->value_bits) | (value & BITMASK32(qf->value_bits));*/
 	if (count == 1)
 		insert1(qf, key);
 	else
@@ -1503,7 +1503,7 @@ void qf_iterator(const QF *qf, QFi *qfi, uint64_t position)
 				idx = bitselect(get_block(qf, block_index)->occupieds[0], 0);
 			}
 		}
-		position = block_index * SLOTS_PER_BLOCK16 + idx;
+		position = block_index * SLOTS_PER_BLOCK32 + idx;
 	}
 
 	qfi->qf = qf;
@@ -1546,8 +1546,8 @@ int qfi_next(QFi *qfi)
 			return 0;
 		}
 		else {
-			uint64_t block_index = qfi->run / SLOTS_PER_BLOCK16;
-			uint64_t rank = bitrank(get_block(qfi->qf, block_index)->occupieds[0], qfi->run % SLOTS_PER_BLOCK16);
+			uint64_t block_index = qfi->run / SLOTS_PER_BLOCK32;
+			uint64_t rank = bitrank(get_block(qfi->qf, block_index)->occupieds[0], qfi->run % SLOTS_PER_BLOCK32);
 			uint64_t next_run = bitselect(get_block(qfi->qf, block_index)->occupieds[0], rank);
 			if (next_run == 64) {
 				rank = 0;
@@ -1561,7 +1561,7 @@ int qfi_next(QFi *qfi)
 				qfi->run = qfi->current = qfi->qf->xnslots;
 				return 1;
 			}
-			qfi->run = block_index * SLOTS_PER_BLOCK16 + next_run;
+			qfi->run = block_index * SLOTS_PER_BLOCK32 + next_run;
 			qfi->current++;
 			if (qfi->current < qfi->run)
 				qfi->current = qfi->run;

@@ -32,7 +32,7 @@
 #include <vector>
 #include <iostream>
 
-#include "cqf8.hpp"
+#include "../include/cqf8.hpp"
 
 namespace gqf8 {
 
