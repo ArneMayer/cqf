@@ -61,7 +61,7 @@ int shift_count[len];
 
 	typedef quotient_filter_iterator QFi;
 
-  uint64_t memory_consumption(const quotient_filter& filter);
+  uint64_t qf_memory_consumption(const quotient_filter& filter);
 
 	void qf_init(QF *qf, uint64_t nslots, uint64_t key_bits, uint64_t value_bits);
 

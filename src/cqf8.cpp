@@ -77,7 +77,7 @@ typedef struct __attribute__ ((__packed__)) qfblock {
 #endif
 } qfblock;
 
-uint64_t memory_consumption(const quotient_filter& filter) {
+uint64_t qf_memory_consumption(const quotient_filter& filter) {
   uint64_t memory = 0;
   //std::cout << "nblocks: " << filter.nblocks << std::endl;
   //std::cout << "METADATA_WORDS_PER_BLOCK: " << METADATA_WORD8S_PER_BLOCK8 << std::endl;
