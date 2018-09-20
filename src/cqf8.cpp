@@ -325,7 +325,9 @@ static inline void set_slot(const QF *qf, uint64_t index, uint64_t value)
 	/* Should use __uint128_t to support up to 64-bit remainders, but gcc seems to generate buggy code.  :/  */
 	assert(index < qf->xnslots);
 	uint64_t *p = (uint64_t *)&get_block(qf, index / SLOTS_PER_BLOCK8)->slots[(index % SLOTS_PER_BLOCK8) * BITS_PER_SLOT8 / 8];
-	uint64_t t = *p;
+	//uint64_t t = *p;
+  uint64_t t;
+  memcpy(&t, p, 4);
 	uint64_t mask = BITMASK8(BITS_PER_SLOT8);
 	uint64_t v = value;
 	int shift = ((index % SLOTS_PER_BLOCK8) * BITS_PER_SLOT8) % 8;
@@ -333,7 +335,8 @@ static inline void set_slot(const QF *qf, uint64_t index, uint64_t value)
 	v <<= shift;
 	t &= ~mask;
 	t |= v;
-	*p = t;
+	//*p = t;
+  memcpy(p, &t, 4);
 }
 
 #else
